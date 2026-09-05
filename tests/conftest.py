@@ -7,4 +7,4 @@ ROOT = Path(__file__).resolve().parents[1]
 
 @pytest.fixture
 def examples():
-    return ROOT / "examples"
+    return ROOT / "agents"

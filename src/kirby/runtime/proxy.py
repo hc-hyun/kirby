@@ -11,7 +11,9 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 
 class ModelProxy:
-    def __init__(self, key, model, max_requests, max_tokens, cancel):
+    def __init__(
+        self, key, model, max_requests, max_tokens, cancel, allowed_tools=None
+    ):
         self._key = key
         self.model = model
         self.max_requests = max_requests
@@ -20,6 +22,7 @@ class ModelProxy:
         self.token = secrets.token_urlsafe(32)
         self.requests = 0
         self.tool_names: set[str] = set()
+        self.allowed_tools = frozenset(allowed_tools or {"load_skill"})
         self.limit_reached = asyncio.Event()
 
     async def complete(self, request):
@@ -34,7 +37,7 @@ class ModelProxy:
             raise web.HTTPTooManyRequests(reason="model_request_limit")
         offered = {item["function"]["name"] for item in body.get("tools", [])}
         # Also verify the native tool surface: ACP callbacks alone are insufficient.
-        if offered - {"load_skill"}:
+        if offered - self.allowed_tools:
             self.limit_reached.set()
             raise web.HTTPForbidden(reason="unapproved_native_tool")
         self.tool_names.update(offered)

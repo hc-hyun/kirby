@@ -44,6 +44,7 @@ async def execute_claimed(store, runtime, task, worker_id: str):
             result=result.output,
             session_id=result.session_id,
             session_path=result.session_path,
+            **({"output_files": result.output_files} if result.output_files else {}),
         )
         if not committed:
             raise LeaseLost

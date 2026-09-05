@@ -33,6 +33,8 @@ class TaskRecord:
     worker_id: str | None = None
     session_id: str | None = None
     session_path: str | None = None
+    attachments: list[dict[str, Any]] = field(default_factory=list)
+    output_files: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -41,6 +43,7 @@ class RunResult:
     session_id: str
     session_path: str
     usage: dict[str, Any] = field(default_factory=dict)
+    output_files: list[dict[str, Any]] = field(default_factory=list)
 
 
 class NotFound(Exception):

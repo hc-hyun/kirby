@@ -1,0 +1,8 @@
+mcp_servers:
+- voc-readonly
+- logs-readonly
+- quality-rag
+model_profiles:
+- quality-default
+worker_pools:
+- mcp-readonly

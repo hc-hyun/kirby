@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>KIRBY · E2E Client</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/app.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="KIRBY 홈">
+        <span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h5v7l6-7h6l-7 8 7 8h-6l-6-7v7H5z"/></svg></span>
+        <strong>KIRBY</strong><span class="brand-divider">/</span><span class="brand-subtitle">E2E Client</span>
+      </a>
+      <div id="connection" class="connection"><span class="connection-dot"></span><span id="connection-text">연결 확인 중</span></div>
+    </header>
+
+    <main class="workspace">
+      <section class="intro" aria-labelledby="page-title">
+        <div><p class="eyebrow">AGENT TEST WORKSPACE</p><h1 id="page-title">에이전트 테스트</h1><p class="intro-copy">요청을 보내고, 작업 상태와 결과를 확인하세요.</p></div>
+        <div class="target"><span class="target-label">연결된 KIRBY API</span><code id="target-url">—</code><span class="target-note">서버에 설정된 인증 정보로 연결합니다.</span></div>
+      </section>
+
+      <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+
+      <div class="workspace-grid">
+        <section class="panel request-panel" aria-labelledby="request-heading">
+          <div class="panel-heading"><h2 id="request-heading"><span class="section-number">01</span>요청 작성</h2><span class="small-label">SEND MESSAGE</span></div>
+          <form id="request-form">
+            <div class="field"><label for="role-select">에이전트</label><select id="role-select" disabled><option value="">에이전트 불러오는 중…</option></select><p id="role-description" class="field-help">사용 가능한 역할을 확인합니다.</p></div>
+            <div class="field">
+              <div class="label-row"><label for="input-text">메시지</label><button id="sample-button" type="button" class="text-button" disabled>합성 예제 넣기 <span aria-hidden="true">↙</span></button></div>
+              <textarea id="input-text" rows="13" placeholder="분석할 데이터를 입력하세요. 합성 예제로 먼저 테스트할 수 있습니다." required spellcheck="false"></textarea>
+              <div class="input-meta"><span>텍스트 또는 JSON 입력</span><span id="input-size">0 B</span></div>
+            </div>
+            <div class="field file-field">
+              <div class="label-row"><label for="file-input">첨부 파일</label><span id="file-count" class="optional">0 / 4</span></div>
+              <input id="file-input" type="file" accept=".txt,.log,.csv,.json,.jsonl" multiple disabled aria-describedby="file-help">
+              <p id="file-help" class="field-help">파일 전송 설정을 확인합니다.</p>
+              <div id="attachment-list" class="attachment-list" aria-live="polite"></div>
+            </div>
+            <fieldset class="mode-field"><legend>응답 방식</legend><div class="mode-selector">
+              <label><input type="radio" name="mode" value="stream" checked><span>Stream</span></label>
+              <label><input type="radio" name="mode" value="poll"><span>즉시 응답 + 조회</span></label>
+              <label><input type="radio" name="mode" value="blocking"><span>완료까지 대기</span></label>
+            </div><p id="mode-help" class="field-help">연결을 유지하며 작업 상태와 결과를 받습니다.</p></fieldset>
+            <details class="context-options"><summary>Context · Message ID <span id="context-indicator">새 대화</span></summary><div class="details-body">
+              <div class="field"><label for="context-id">Context ID <span class="optional">선택</span></label><input id="context-id" type="text" autocomplete="off" placeholder="비워 두면 새 대화"><p class="field-help">후속 대화는 완료된 작업의 Context ID로 이어집니다.</p></div>
+              <div class="field"><label for="message-id">Message ID <span class="optional">선택</span></label><input id="message-id" type="text" autocomplete="off" placeholder="비워 두면 자동 생성"><p class="field-help">동일한 메시지의 중복 제출 확인에 사용할 수 있습니다.</p></div>
+            </div></details>
+            <div class="send-row"><button id="send-button" type="submit" class="button primary" disabled><span>요청 보내기</span><span aria-hidden="true">↗</span></button><button id="reset-button" type="button" class="button secondary">새 대화</button></div>
+            <p class="send-note">요청은 실제 API · Worker · 모델을 실행합니다.</p>
+          </form>
+          <details class="agent-card"><summary>Agent Card <span class="small-label">A2A 1.0</span></summary><pre id="agent-card-json">에이전트를 선택하세요.</pre></details>
+        </section>
+
+        <div class="results-column">
+          <section class="panel task-panel" aria-labelledby="task-heading">
+            <div class="panel-heading"><h2 id="task-heading"><span class="section-number">02</span>작업 결과</h2><div class="task-header-meta"><span id="elapsed" class="elapsed" hidden></span><span id="task-state" class="state-badge" data-state="idle">대기</span></div></div>
+            <div class="task-content">
+              <div id="task-empty" class="empty-state"><div class="empty-illustration" aria-hidden="true"><span class="empty-node"></span><span class="empty-line"></span><span class="empty-node result-node">↗</span></div><h3>첫 요청을 기다리고 있어요</h3><p>왼쪽에서 에이전트와 메시지를 선택하세요.<br>작업 상태와 분석 결과가 여기에 표시됩니다.</p></div>
+              <div id="task-details" hidden>
+                <dl class="task-identifiers"><div><dt>Task ID</dt><dd id="task-id">—</dd></div><div><dt>Context ID</dt><dd id="task-context">—</dd></div></dl>
+                <div id="task-progress" class="task-progress"><span data-step="submitted">요청 접수</span><i></i><span data-step="working">실행 중</span><i></i><span data-step="completed">작업 종료</span></div>
+                <div class="task-actions"><button id="continue-button" type="button" class="button small secondary" disabled>이 대화 이어가기 <span aria-hidden="true">↙</span></button><button id="get-button" type="button" class="button small ghost" disabled>상태 조회</button><button id="subscribe-button" type="button" class="button small ghost" disabled>구독</button><button id="cancel-button" type="button" class="button small danger" disabled>작업 취소</button></div>
+                <p id="task-message" class="task-message" aria-live="polite"></p>
+                <div class="result-heading"><h3>결과 <span id="artifact-count" class="count">0</span></h3><button id="download-button" type="button" class="text-button" disabled>리포트 저장 <span aria-hidden="true">↓</span></button></div>
+                <div id="artifacts" class="artifacts"><div class="result-placeholder">결과를 기다리고 있습니다.</div></div>
+              </div>
+              <div id="observation-row" class="observation-row" hidden><span><span class="pulse-dot"></span><span id="observation-text">상태 수신 중</span></span><button id="stop-button" type="button" class="text-button">수신 중지</button></div>
+            </div>
+            <details id="event-details" class="event-details"><summary><span>이벤트 로그 <span id="event-count" class="count">0</span></span><span class="small-label">RAW JSON</span></summary><div id="event-log" class="event-log"><p class="log-empty">아직 수신한 이벤트가 없습니다.</p></div></details>
+          </section>
+
+          <section class="panel history-panel" aria-labelledby="history-heading">
+            <div class="panel-heading"><h2 id="history-heading">최근 작업 <span id="history-count" class="count">0</span></h2><button id="refresh-button" type="button" class="text-button" disabled><span aria-hidden="true">↻</span> 새로고침</button></div>
+            <div class="history-filter"><label for="history-context">Context</label><input id="history-context" type="text" autocomplete="off" placeholder="모든 대화 · Context ID로 필터"><button id="filter-button" class="button small secondary" type="button" disabled>조회</button></div>
+            <div id="task-list" class="task-list"><p class="history-empty">연결 후 최근 작업을 불러옵니다.</p></div>
+            <button id="more-button" type="button" class="load-more" hidden>더 불러오기 ↓</button>
+          </section>
+        </div>
+      </div>
+      <footer class="footer"><span>KIRBY <span class="footer-dot">·</span> Knowledge &amp; Instruction Runtime for Building Your-agent</span><span>LOCAL TEST CLIENT</span></footer>
+    </main>
+  </body>
+</html>

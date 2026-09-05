@@ -1,0 +1,61 @@
+{
+  "transport": "Chromium UI → official A2A SDK → HTTP API → PostgreSQL → Worker → Goose → OpenRouter",
+  "model": "cohere/north-mini-code:free",
+  "checks": [
+    {
+      "name": "catalog and role discovery",
+      "result": "PASS"
+    },
+    {
+      "name": "VOC streamed result",
+      "result": "PASS",
+      "task": "c79555d6-188d-42ca-8747-5b545d886437",
+      "context": "24a048a2-bd0d-49ea-8ee9-0632621aea29",
+      "state": "completed"
+    },
+    {
+      "name": "VOC continuation with immediate response and polling",
+      "result": "PASS",
+      "task": "4ba16c7c-7892-48f2-871f-fcf7fba69362",
+      "context": "24a048a2-bd0d-49ea-8ee9-0632621aea29",
+      "state": "completed"
+    },
+    {
+      "name": "Log blocking result",
+      "result": "PASS",
+      "task": "73f1d8b2-00ab-4aa6-8a97-78fd4475cf22",
+      "context": "a93d1905-63e3-4d0a-8df5-772ac62706da",
+      "state": "completed"
+    },
+    {
+      "name": "JSON report download",
+      "result": "PASS"
+    },
+    {
+      "name": "Queued task observation stop, subscribe and cancel",
+      "result": "PASS",
+      "task": "bf1d8039-e6cc-4e06-86e8-db2d9b31a6c8",
+      "context": "ef6d0d89-6b16-4225-a95c-34e6a5ecbbff",
+      "state": "canceled"
+    },
+    {
+      "name": "History Get restores completed artifact",
+      "result": "PASS"
+    },
+    {
+      "name": "Mobile layout without horizontal overflow",
+      "result": "PASS"
+    },
+    {
+      "name": "No browser JavaScript errors",
+      "result": "PASS"
+    },
+    {
+      "name": "Final JavaScript revision: history restore, streamed admission, stop, subscribe, confirmed cancellation",
+      "result": "PASS",
+      "task": "93a7c59f-15d8-487b-a630-37e3ac6686a5",
+      "model_requests": 0
+    }
+  ],
+  "result": "PASS"
+}

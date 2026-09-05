@@ -7,6 +7,7 @@ import uvicorn
 
 from kirby.api import create_app
 from kirby.config import Settings, load_credentials
+from kirby.files import ObjectStore
 from kirby.roles.registry import load_registry
 from kirby.storage import Store
 
@@ -19,6 +20,7 @@ def main():
         load_registry(settings.roles_dir, settings.model),
         load_credentials(settings.credentials_file),
         public_url=settings.public_url,
+        object_store=ObjectStore.from_env(),
     )
 
     @asynccontextmanager

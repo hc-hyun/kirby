@@ -3,6 +3,7 @@ import logging
 import signal
 
 from kirby.config import Settings
+from kirby.files import ObjectStore
 from kirby.runtime import GooseRuntime
 from kirby.storage import Store
 from kirby.worker.service import run_worker
@@ -24,6 +25,7 @@ async def main():
                 settings.sessions_dir,
                 settings.model,
                 settings.key_file,
+                object_store=ObjectStore.from_env(),
             ),
             settings.worker_id,
             stop,

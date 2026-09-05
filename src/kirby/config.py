@@ -24,7 +24,7 @@ class Settings:
     def from_env(cls):
         return cls(
             database_url=os.environ["KIRBY_DATABASE_URL"],
-            roles_dir=Path(os.getenv("KIRBY_ROLES_DIR", "examples")).resolve(),
+            roles_dir=Path(os.getenv("KIRBY_ROLES_DIR", "agents")).resolve(),
             sessions_dir=Path(
                 os.getenv("KIRBY_SESSIONS_DIR", ".local/sessions")
             ).resolve(),

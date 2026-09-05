@@ -1,0 +1,26 @@
+# Optional connection to the existing local my-minio stack.
+services:
+  api:
+    environment: &minio
+      KIRBY_MINIO_ENDPOINT: ${KIRBY_MINIO_ENDPOINT:-http://minio:9000}
+      KIRBY_MINIO_PUBLIC_ENDPOINT: ${KIRBY_MINIO_PUBLIC_ENDPOINT:-http://127.0.0.1:9000}
+      KIRBY_MINIO_CREDENTIALS_FILE: /run/secrets/minio_credentials
+      KIRBY_MINIO_BUCKET: ${KIRBY_MINIO_BUCKET:-}
+      KIRBY_MINIO_REGION: ${KIRBY_MINIO_REGION:-}
+    secrets: [minio_credentials]
+    networks: [default, minio]
+    mem_limit: 512m
+    memswap_limit: 512m
+  worker:
+    environment: *minio
+    secrets: [minio_credentials]
+    networks: [default, minio]
+    mem_limit: 1g
+    memswap_limit: 1g
+secrets:
+  minio_credentials:
+    file: ${KIRBY_MINIO_CREDENTIALS_FILE:?Set the path to the my-minio .env file}
+networks:
+  minio:
+    external: true
+    name: ${KIRBY_MINIO_NETWORK:-my-minio_default}

@@ -16,11 +16,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends libstdc++6 ca-c
 WORKDIR /app
 COPY --from=build /app/.venv /app/.venv
 COPY --from=build /app/.tools/goose /usr/local/bin/goose
-COPY examples /app/examples
+COPY agents /app/agents
 ENV PATH="/app/.venv/bin:$PATH" \
     KIRBY_HOST=0.0.0.0 \
     KIRBY_GOOSE_BINARY=/usr/local/bin/goose \
-    KIRBY_ROLES_DIR=/app/examples \
+    KIRBY_ROLES_DIR=/app/agents \
     KIRBY_SESSIONS_DIR=/data/sessions \
     PYTHONUNBUFFERED=1
 USER kirby

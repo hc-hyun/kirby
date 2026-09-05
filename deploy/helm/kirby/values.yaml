@@ -13,6 +13,13 @@ existingSecret: kirby-secrets
 publicUrl: http://127.0.0.1:8000
 model: cohere/north-mini-code:free
 
+# MINIO_CREDENTIALS in existingSecret is a dotenv file containing
+# MINIO_ROOT_USER, MINIO_ROOT_PASSWORD, MINIO_BUCKET and MINIO_REGION.
+files:
+  enabled: false
+  endpoint: ""
+  publicEndpoint: ""
+
 storage:
   size: 10Gi
   # Empty uses the cluster's default storage class.

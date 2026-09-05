@@ -1,6 +1,6 @@
 schema_version: 1
 id: voc-analyst
-version: 1.0.0
+version: 1.1.0
 description: Classify customer VOC using supplied evidence.
 runtime:
   model_profile: quality-default
@@ -11,6 +11,8 @@ skills:
     version: 1.0.0
   available:
   - id: voc-normalization
+    version: 1.0.0
+  - id: file-evidence
     version: 1.0.0
 tools:
   mcp_server_refs:
@@ -35,3 +37,18 @@ a2a:
   - id: voc-analysis
     name: VOC 분석
     description: Classify customer VOC using supplied evidence.
+assets:
+  skills:
+    voc-analyst-role:
+      path: skills/voc-analyst-role
+      version: 1.0.0
+    voc-normalization:
+      path: skills/voc-normalization
+      version: 1.0.0
+    file-evidence:
+      shared: file-evidence
+      version: 1.0.0
+  output_schema: schemas/result.schema.json
+  fixtures:
+    input: fixtures/input.synthetic.json
+    result: fixtures/result.synthetic.json

@@ -14,7 +14,9 @@ import yaml
 from acp import schema
 
 from kirby.contracts import RunResult, TaskRecord
+from kirby.files.tools import TOOL_NAMES
 
+from .files import StopSignal, attachment_prompt, export_reports, prepare_attachments
 from .proxy import ModelProxy
 
 # Verified against Goose 1.49.0 platform_extensions/mod.rs. Only skills is enabled.
@@ -91,7 +93,7 @@ def parse_output(text, output_schema):
     return result
 
 
-def prepare_session(task, sessions_dir, model, host, token):
+def prepare_session(task, sessions_dir, model, host, token, allowed_tools=None):
     context_id = str(UUID(task.context_id))
     base = sessions_dir.resolve() / context_id
     if task.session_path is not None and Path(task.session_path).resolve() != base:
@@ -136,7 +138,7 @@ def prepare_session(task, sessions_dir, model, host, token):
         yaml.safe_dump(
             {
                 "user": {
-                    "always_allow": ["load_skill"],
+                    "always_allow": sorted(allowed_tools or {"load_skill"}),
                     "ask_before": [],
                     "never_allow": [],
                 }
@@ -193,12 +195,14 @@ class GooseRuntime:
         model: str,
         key_file: Path,
         max_model_requests: int = 20,
+        object_store=None,
     ):
         self.binary = binary.resolve()
         self.sessions_dir = sessions_dir
         self.model = model
         self.key_file = key_file
         self.max_model_requests = max_model_requests
+        self.object_store = object_store
 
     async def run(self, task: TaskRecord, cancel: asyncio.Event) -> RunResult:
         if cancel.is_set():
@@ -216,88 +220,156 @@ class GooseRuntime:
         key = self.key_file.read_text().strip()
         if not key or "\n" in key:
             raise ValueError("invalid_model_key_file")
+        allowed_tools = {"load_skill"} | (TOOL_NAMES if task.attachments else set())
+        stop = StopSignal(cancel)
         proxy = ModelProxy(
             key,
             manifest["model"],
             min(self.max_model_requests, limits["max_model_requests"]),
             limits["max_output_tokens"],
             cancel,
+            allowed_tools=allowed_tools,
         )
         client = Client(limits["max_output_bytes"])
-        async with (
-            asyncio.timeout(limits["max_runtime_seconds"]),
-            proxy.serve() as host,
-        ):
-            base, work, env = prepare_session(
-                task, self.sessions_dir, manifest["model"], host, proxy.token
-            )
-            process = await asyncio.create_subprocess_exec(
-                str(self.binary),
-                "acp",
-                cwd=work,
-                env=env,
-                start_new_session=True,
-                stdin=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.DEVNULL,
-                limit=2 * 1048576,
-            )
-            conn = acp.connect_to_agent(client, process.stdin, process.stdout)
-            try:
-                initialized = await conn.initialize(
-                    protocol_version=1, client_capabilities=schema.ClientCapabilities()
+        try:
+            async with (
+                asyncio.timeout(limits["max_runtime_seconds"]),
+                proxy.serve() as host,
+                contextlib.AsyncExitStack() as stack,
+            ):
+                base, work, env = prepare_session(
+                    task,
+                    self.sessions_dir,
+                    manifest["model"],
+                    host,
+                    proxy.token,
+                    allowed_tools,
                 )
-                if initialized.protocol_version != 1:
-                    raise RuntimeError("unsupported_acp_version")
+                readers = await prepare_attachments(task, base, self.object_store, stop)
+                mcp_servers = []
+                if readers.files:
+                    mcp_servers.append(await stack.enter_async_context(readers.serve()))
+                return await self._run_agent(
+                    task,
+                    cancel,
+                    stop,
+                    proxy,
+                    client,
+                    base,
+                    work,
+                    env,
+                    readers,
+                    mcp_servers,
+                )
+        finally:
+            stop.set()
+
+    async def _run_agent(
+        self,
+        task,
+        cancel,
+        stop,
+        proxy,
+        client,
+        base,
+        work,
+        env,
+        readers,
+        mcp_servers,
+    ):
+        manifest = task.manifest
+        process = await asyncio.create_subprocess_exec(
+            str(self.binary),
+            "acp",
+            cwd=work,
+            env=env,
+            start_new_session=True,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL,
+            limit=2 * 1048576,
+        )
+        conn = acp.connect_to_agent(client, process.stdin, process.stdout)
+        try:
+            initialized = await conn.initialize(
+                protocol_version=1, client_capabilities=schema.ClientCapabilities()
+            )
+            if initialized.protocol_version != 1:
+                raise RuntimeError("unsupported_acp_version")
+            if (
+                initialized.agent_info is None
+                or initialized.agent_info.version != manifest["goose_version"]
+            ):
+                raise RuntimeError("goose_binary_version_mismatch")
+            if task.session_id:
+                if not initialized.agent_capabilities.load_session:
+                    raise RuntimeError("session_load_unsupported")
+                await conn.load_session(
+                    cwd=str(work), session_id=task.session_id, mcp_servers=mcp_servers
+                )
+                session_id = task.session_id
+            else:
                 if (
-                    initialized.agent_info is None
-                    or initialized.agent_info.version != manifest["goose_version"]
+                    mcp_servers
+                    and not initialized.agent_capabilities.mcp_capabilities.http
                 ):
-                    raise RuntimeError("goose_binary_version_mismatch")
-                if task.session_id:
-                    if not initialized.agent_capabilities.load_session:
-                        raise RuntimeError("session_load_unsupported")
-                    await conn.load_session(
-                        cwd=str(work), session_id=task.session_id, mcp_servers=[]
+                    raise RuntimeError("http_mcp_unsupported")
+                session = await conn.new_session(cwd=str(work), mcp_servers=mcp_servers)
+                session_id = session.session_id
+            # Loading a session can replay historical messages; discard them.
+            client.chunks.clear()
+            client.output_bytes = 0
+            prompt = attachment_prompt(task, readers)
+            for correction in range(2):
+                output = await self._prompt(
+                    conn, session_id, prompt, client, proxy, cancel
+                )
+                try:
+                    result = parse_output(output, manifest["output_schema"])
+                except (ValueError, jsonschema.ValidationError) as exc:
+                    if correction:
+                        raise ValueError("invalid_result_json") from None
+                    if isinstance(exc, jsonschema.ValidationError):
+                        feedback = (
+                            f"{exc.validator} at {list(exc.absolute_path)!r}: "
+                            f"{exc.message}"
+                        )[:600]
+                    else:
+                        feedback = str(exc)[:600]
+                    prompt = (
+                        "Your previous answer failed validation.\n"
+                        f"Validation error: {feedback}\n"
+                        "Return one JSON data instance that conforms to the schema, "
+                        "without markdown or commentary. The schema describes the "
+                        "answer's shape; do not return the schema definition itself "
+                        "or copy schema metadata such as $schema, properties or "
+                        "required into the answer. Use actual analysis values and "
+                        "the conversation evidence; do not invent evidence.\n"
+                        "Required output schema:\n"
+                        + json.dumps(manifest["output_schema"], ensure_ascii=False)
                     )
-                    session_id = task.session_id
                 else:
-                    session = await conn.new_session(cwd=str(work), mcp_servers=[])
-                    session_id = session.session_id
-                # Loading a session can replay historical messages; discard them.
-                client.chunks.clear()
-                client.output_bytes = 0
-                prompt = task.input_text
-                for correction in range(2):
-                    output = await self._prompt(
-                        conn, session_id, prompt, client, proxy, cancel
+                    output_files = await export_reports(
+                        task, result, base, self.object_store, stop
                     )
-                    try:
-                        result = parse_output(output, manifest["output_schema"])
-                        return RunResult(
-                            result,
-                            session_id,
-                            str(base),
-                            {
-                                "model_requests": proxy.requests,
-                                "tool_calls": client.tool_calls,
-                                "offered_tools": sorted(proxy.tool_names),
-                                "json_corrections": correction,
-                            },
-                        )
-                    except (ValueError, jsonschema.ValidationError):
-                        if correction:
-                            raise ValueError("invalid_result_json") from None
-                        prompt = (
-                            "Your answer did not match the required JSON schema. "
-                            "Return one JSON object without markdown or commentary. "
-                            "Use the conversation; do not invent evidence. Schema:\n"
-                            + json.dumps(manifest["output_schema"], ensure_ascii=False)
-                        )
-                raise AssertionError("unreachable")
-            finally:
-                await terminate(process)
-                await conn.close()
+                    return RunResult(
+                        result,
+                        session_id,
+                        str(base),
+                        {
+                            "model_requests": proxy.requests,
+                            "tool_calls": client.tool_calls,
+                            "offered_tools": sorted(proxy.tool_names),
+                            "json_corrections": correction,
+                            "file_tool_calls": readers.calls,
+                            "file_scanned_bytes": readers.scanned_bytes,
+                        },
+                        output_files=output_files,
+                    )
+            raise AssertionError("unreachable")
+        finally:
+            await terminate(process)
+            await conn.close()
 
     async def _prompt(self, conn, session_id, text, client, proxy, cancel):
         if cancel.is_set():

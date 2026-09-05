@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+from functools import partial
 
 from a2a import types as t
 from a2a.server.request_handlers import RequestHandler
@@ -13,6 +14,7 @@ from a2a.utils.errors import (
     UnsupportedOperationError,
 )
 
+from kirby.api.files import MAX_ATTACHMENTS, file_part, file_reference
 from kirby.contracts import TERMINAL_STATES, Conflict, NotFound, TaskRecord
 
 STATES = {
@@ -24,7 +26,14 @@ STATES = {
 }
 
 
-def task_snapshot(record: TaskRecord, history_length=0, include_artifacts=True):
+def task_snapshot(
+    record: TaskRecord,
+    history_length=0,
+    include_artifacts=True,
+    *,
+    object_store=None,
+    public_url="http://127.0.0.1:8000",
+):
     task = t.Task(
         id=record.id,
         context_id=record.context_id,
@@ -33,6 +42,15 @@ def task_snapshot(record: TaskRecord, history_length=0, include_artifacts=True):
     task.status.timestamp.FromDatetime(record.updated_at)
     if record.error:
         task.metadata.update({"error": record.error})
+    if record.attachments:
+        task.metadata.update(
+            {
+                "attachments": [
+                    {key: ref[key] for key in ("id", "filename", "media_type", "size")}
+                    for ref in record.attachments
+                ]
+            }
+        )
     if include_artifacts and record.state == "completed" and record.result is not None:
         task.artifacts.append(
             t.Artifact(
@@ -45,6 +63,21 @@ def task_snapshot(record: TaskRecord, history_length=0, include_artifacts=True):
                 ],
             )
         )
+        if object_store:
+            for index, ref in enumerate(record.output_files):
+                part = t.Part(
+                    url=object_store.download_url(ref),
+                    filename=ref["filename"],
+                    media_type=ref["media_type"],
+                )
+                part.metadata.update({"size": ref["size"]})
+                task.artifacts.append(
+                    t.Artifact(
+                        artifact_id=f"{record.id}-file-{index}",
+                        name=ref["filename"],
+                        parts=[part],
+                    )
+                )
     if history_length:
         # A Task contains its own input; prior turns belong to other Tasks.
         task.history.append(
@@ -53,18 +86,38 @@ def task_snapshot(record: TaskRecord, history_length=0, include_artifacts=True):
                 context_id=record.context_id,
                 task_id=record.id,
                 role=t.Role.ROLE_USER,
-                parts=[t.Part(text=record.input_text)],
+                parts=[
+                    t.Part(text=record.input_text),
+                    *[
+                        file_part(ref, public_url, record.role_id)
+                        for ref in record.attachments
+                    ],
+                ],
             )
         )
     return task
 
 
 class TaskHandler(RequestHandler):
-    def __init__(self, store, role_id, manifest, poll_interval):
+    def __init__(
+        self,
+        store,
+        role_id,
+        manifest,
+        poll_interval,
+        *,
+        object_store=None,
+        public_url="http://127.0.0.1:8000",
+    ):
         self.store = store
         self.role_id = role_id
         self.manifest = manifest
         self.poll_interval = poll_interval
+        self.object_store = object_store
+        self.public_url = public_url
+        self.snapshot = partial(
+            task_snapshot, object_store=object_store, public_url=public_url
+        )
 
     def authorize(self, params, context):
         principal = context.state["principal"]
@@ -92,15 +145,52 @@ class TaskHandler(RequestHandler):
         ):
             raise InvalidParamsError("Expected user message with message_id")
         if not message.parts or any(
-            part.WhichOneof("content") != "text" for part in message.parts
+            part.WhichOneof("content") not in {"text", "url"} for part in message.parts
         ):
-            raise InvalidParamsError("Only text input is supported")
+            raise InvalidParamsError("Use text and registered file references")
+        attachments = []
+        for part in message.parts:
+            if part.WhichOneof("content") != "url":
+                continue
+            if self.object_store is None:
+                raise UnsupportedOperationError("File storage is not configured")
+            try:
+                file_id = file_reference(part, self.public_url, self.role_id)
+                record = await self.store.get_file(principal, self.role_id, file_id)
+            except ValueError:
+                raise InvalidParamsError("Use a registered file URL") from None
+            except NotFound:
+                raise TaskNotFoundError from None
+            if record["status"] != "ready":
+                raise InvalidParamsError("Complete the file upload first")
+            attachments.append(
+                {
+                    key: record[key]
+                    for key in (
+                        "id",
+                        "filename",
+                        "media_type",
+                        "size",
+                        "object_key",
+                        "etag",
+                    )
+                }
+            )
+        if len(attachments) > MAX_ATTACHMENTS:
+            raise InvalidParamsError("At most four attachments are supported")
         if params.configuration.HasField("task_push_notification_config"):
             raise PushNotificationNotSupportedError
         modes = params.configuration.accepted_output_modes
-        if modes and "application/json" not in modes:
-            raise InvalidParamsError("Output mode is application/json")
-        text = "\n".join(part.text for part in message.parts)
+        supported_modes = {"application/json"}
+        if self.object_store:
+            supported_modes.add("text/csv")
+        if modes and not supported_modes.intersection(modes):
+            raise InvalidParamsError("Unsupported output mode")
+        text = "\n".join(
+            part.text for part in message.parts if part.WhichOneof("content") == "text"
+        )
+        if not text.strip() and attachments:
+            text = "Analyze the attached files using the required output schema."
         limit = self.manifest["profile"]["execution"]["max_input_bytes"]
         if not text.strip() or len(text.encode()) > limit:
             raise InvalidParamsError("Input is empty or exceeds the byte limit")
@@ -112,6 +202,7 @@ class TaskHandler(RequestHandler):
                 text,
                 self.manifest,
                 context_id=message.context_id or None,
+                **({"attachments": attachments} if attachments else {}),
             )
         except NotFound:
             raise TaskNotFoundError from None
@@ -130,17 +221,17 @@ class TaskHandler(RequestHandler):
         principal, record = await self.submit(params, context)
         if not params.configuration.return_immediately:
             record = await self.wait(principal, record)
-        return task_snapshot(record)
+        return self.snapshot(record)
 
     async def stream(self, principal, record):
-        yield task_snapshot(record)
+        yield self.snapshot(record)
         while record.state not in TERMINAL_STATES:
             previous = (record.state, record.updated_at)
             await asyncio.sleep(self.poll_interval)
             record = await self.get(principal, record.id)
             if (record.state, record.updated_at) == previous:
                 continue
-            task = task_snapshot(record)
+            task = self.snapshot(record)
             for artifact in task.artifacts:
                 yield t.TaskArtifactUpdateEvent(
                     task_id=task.id,
@@ -169,7 +260,7 @@ class TaskHandler(RequestHandler):
         principal = self.authorize(params, context)
         if params.history_length < 0:
             raise InvalidParamsError("history_length must be nonnegative")
-        return task_snapshot(
+        return self.snapshot(
             await self.get(principal, params.id), params.history_length
         )
 
@@ -198,7 +289,7 @@ class TaskHandler(RequestHandler):
             raise TaskNotFoundError from None
         return t.ListTasksResponse(
             tasks=[
-                task_snapshot(r, params.history_length, params.include_artifacts)
+                self.snapshot(r, params.history_length, params.include_artifacts)
                 for r in records[:size]
             ],
             next_page_token=str(offset + size) if len(records) > size else "",
@@ -223,7 +314,7 @@ class TaskHandler(RequestHandler):
                 record = await self.wait(principal, record)
         except TimeoutError:
             record = await self.get(principal, params.id)
-        return task_snapshot(record)
+        return self.snapshot(record)
 
     async def push_disabled(self, params, context):
         self.authorize(params, context)

@@ -1,0 +1,36 @@
+{
+  "status": "PASS",
+  "scope": "Read-only layout feasibility probe using temporary copies and unchanged production loader",
+  "roles": [
+    {
+      "id": "voc-analyst",
+      "execution_manifest_equal": true,
+      "execution_digest": "da0f8e5013349e8bee7c77961ea88149b7f404e36f4bb4590a31fa31556e289e",
+      "source_layout_digest_changed": true,
+      "fixture_schema": "PASS",
+      "agent_folder_files": 13
+    },
+    {
+      "id": "log-analyst",
+      "execution_manifest_equal": true,
+      "execution_digest": "233a49af6cc1379c8b8d8521d6cdce8127a4dde6e0774a66f4e5a45dfc32d2b0",
+      "source_layout_digest_changed": true,
+      "fixture_schema": "PASS",
+      "agent_folder_files": 11
+    }
+  ],
+  "a2a_routes_equal": true,
+  "shared_skills": [
+    "file-evidence"
+  ],
+  "not_run": [
+    "Proposed agent-local descriptor/registry implementation",
+    "Live service migration and existing native context continuation after migration",
+    "Separate per-agent deployment or hot reload"
+  ],
+  "notes": [
+    "Temporary copies removed; repository examples, running services and PostgreSQL were not changed.",
+    "The probe retains the existing global catalog and role-profile schema anchors; it does not validate the proposed future package loader.",
+    "Final execution manifests are equal; LocalRole source-layout digests change as expected."
+  ]
+}

@@ -46,6 +46,14 @@ spec:
               value: {{ .Values.publicUrl | quote }}
             - name: KIRBY_MODEL
               value: {{ .Values.model | quote }}
+            {{- if .Values.files.enabled }}
+            - name: KIRBY_MINIO_ENDPOINT
+              value: {{ required "files.endpoint is required" .Values.files.endpoint | quote }}
+            - name: KIRBY_MINIO_PUBLIC_ENDPOINT
+              value: {{ required "files.publicEndpoint is required" .Values.files.publicEndpoint | quote }}
+            - name: KIRBY_MINIO_CREDENTIALS_FILE
+              value: /run/secrets/minio_credentials
+            {{- end }}
           readinessProbe:
             httpGet: {path: /readyz, port: http}
             periodSeconds: 5
@@ -66,6 +74,9 @@ spec:
             defaultMode: 0440
             items:
               - {key: API_CREDENTIALS, path: api_credentials}
+              {{- if .Values.files.enabled }}
+              - {key: MINIO_CREDENTIALS, path: minio_credentials}
+              {{- end }}
         - name: tmp
           emptyDir: {}
 ---

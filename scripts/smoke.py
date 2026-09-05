@@ -4,15 +4,28 @@ import argparse
 import asyncio
 import json
 from pathlib import Path
+from urllib.parse import urlsplit
 from uuid import uuid4
 
 import httpx
 from a2a import types as t
 from a2a.client.transports.jsonrpc import JsonRpcTransport
-from google.protobuf.json_format import ParseDict
+from google.protobuf.json_format import MessageToDict, ParseDict
+
+from kirby.roles import load_samples
 
 
-async def main(url: str, credentials_file: Path, output: Path):
+def artifact_snapshot(task):
+    artifacts = [MessageToDict(artifact) for artifact in task.artifacts]
+    for artifact in artifacts:
+        for part in artifact.get("parts", []):
+            if "url" in part:
+                # Task Get refreshes expiring MinIO signatures.
+                part["url"] = urlsplit(part["url"])._replace(query="").geturl()
+    return artifacts
+
+
+async def main(url: str, credentials_file: Path, output: Path, agents_dir: Path):
     token = json.loads(credentials_file.read_text())[0]["token"]
     report = {"transport": "HTTP JSON-RPC", "checks": []}
     async with httpx.AsyncClient(
@@ -25,14 +38,15 @@ async def main(url: str, credentials_file: Path, output: Path):
     ) as http:
         response = await http.get("/agents")
         response.raise_for_status()
-        for role_id in ["voc-analyst", "log-analyst"]:
+        allowed = {agent["id"] for agent in response.json()["agents"]}
+        samples = load_samples(agents_dir)
+        for role_id, input_text in samples.items():
+            if role_id not in allowed:
+                continue
             response = await http.get(f"/agents/{role_id}/.well-known/agent-card.json")
             response.raise_for_status()
             card = ParseDict(response.json(), t.AgentCard())
             client = JsonRpcTransport(http, card, card.supported_interfaces[0].url)
-            input_text = Path(
-                f"examples/inputs/{role_id.split('-')[0]}.synthetic.json"
-            ).read_text()
             first = await client.send_message(
                 t.SendMessageRequest(
                     message=t.Message(
@@ -53,7 +67,7 @@ async def main(url: str, credentials_file: Path, output: Path):
             print(role_id, t.TaskState.Name(result.status.state), flush=True)
             if result.status.state == t.TaskState.TASK_STATE_COMPLETED:
                 fetched = await client.get_task(t.GetTaskRequest(id=result.id))
-                assert fetched.artifacts == result.artifacts
+                assert artifact_snapshot(fetched) == artifact_snapshot(result)
                 followup = await client.send_message(
                     t.SendMessageRequest(
                         message=t.Message(
@@ -87,7 +101,9 @@ async def main(url: str, credentials_file: Path, output: Path):
                 )
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, indent=2) + "\n")
-    return all(c["state"] == "TASK_STATE_COMPLETED" for c in report["checks"])
+    return bool(report["checks"]) and all(
+        c["state"] == "TASK_STATE_COMPLETED" for c in report["checks"]
+    )
 
 
 if __name__ == "__main__":
@@ -97,7 +113,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--output", type=Path, default=Path("docs/evidence/service-smoke.json")
     )
+    parser.add_argument("--agents-dir", type=Path, default=Path("agents"))
     args = parser.parse_args()
     raise SystemExit(
-        0 if asyncio.run(main(args.url, args.credentials_file, args.output)) else 1
+        0
+        if asyncio.run(
+            main(args.url, args.credentials_file, args.output, args.agents_dir)
+        )
+        else 1
     )

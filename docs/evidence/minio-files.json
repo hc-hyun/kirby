@@ -1,0 +1,238 @@
+{
+  "date": "2026-09-05",
+  "status": "PASS",
+  "feature": "FILES01: optional MinIO attachments and analysis reports",
+  "browser": {
+    "date": "2026-09-05",
+    "status": "PASS",
+    "file_bytes": 52428800,
+    "model": "cohere/north-mini-code:free",
+    "browser_errors": [],
+    "requests": [
+      {
+        "origin": "http://127.0.0.1:8088",
+        "path": "/api/agents/log-analyst/files",
+        "body_bytes": 81
+      },
+      {
+        "origin": "http://127.0.0.1:9000",
+        "path": "/dev",
+        "body_bytes": null
+      },
+      {
+        "origin": "http://127.0.0.1:8088",
+        "path": "/api/agents/log-analyst/files/c1e55e03-a0dd-4010-925d-019c7944328b/complete",
+        "body_bytes": 0
+      },
+      {
+        "origin": "http://127.0.0.1:8088",
+        "path": "/api/agents/log-analyst/stream",
+        "body_bytes": 851
+      },
+      {
+        "origin": "http://127.0.0.1:8088",
+        "path": "/api/agents/log-analyst/send",
+        "body_bytes": 505
+      }
+    ],
+    "tasks": [
+      {
+        "id": "50bede27-129c-4f24-8b99-9929f90b1b6b",
+        "context_id": "8124628c-6184-4737-83b5-416ea2824ed9",
+        "state": "TASK_STATE_COMPLETED",
+        "attachment_count": 1,
+        "error": null,
+        "downloads": [
+          {
+            "name": "report.json",
+            "bytes": 1321,
+            "origin": "http://127.0.0.1:9000"
+          },
+          {
+            "name": "report.csv",
+            "bytes": 232,
+            "origin": "http://127.0.0.1:9000"
+          }
+        ]
+      },
+      {
+        "id": "a38c5344-d062-44ad-943b-9c12c6d09445",
+        "context_id": "8124628c-6184-4737-83b5-416ea2824ed9",
+        "state": "TASK_STATE_COMPLETED",
+        "attachment_count": 1,
+        "error": null,
+        "downloads": [
+          {
+            "name": "report.json",
+            "bytes": 1321,
+            "origin": "http://127.0.0.1:9000"
+          },
+          {
+            "name": "report.csv",
+            "bytes": 232,
+            "origin": "http://127.0.0.1:9000"
+          }
+        ]
+      }
+    ],
+    "upload": "PASS",
+    "continuation": "PASS",
+    "native_tools": {
+      "kirbyfiles__search_file": 2,
+      "kirbyfiles__read_file": 2
+    },
+    "model_requests_by_task": [
+      4,
+      3
+    ],
+    "downloaded_report_schema_and_source_line": "PASS",
+    "mobile_390px_and_visual_review": "PASS"
+  },
+  "live_container_memory": {
+    "api": {
+      "limit_bytes": 536870912,
+      "peak_bytes": 87920640,
+      "peak_mib": 83.85,
+      "events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      }
+    },
+    "worker": {
+      "limit_bytes": 1073741824,
+      "peak_bytes": 202244096,
+      "peak_mib": 192.88,
+      "events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      }
+    }
+  },
+  "generated_50_mib_transport_probe": {
+    "check": "MinIO disk-backed 50 MiB generated-file upload and pinned download",
+    "result": "PASS",
+    "expected_bytes": 52428800,
+    "read_write_chunk_bytes": 65536,
+    "multipart_part_bytes": 5242880,
+    "multipart_parallel_uploads": 1,
+    "cgroup_before": {
+      "memory.max": 1073741824,
+      "memory.current": 188674048,
+      "memory.peak": 221507584,
+      "memory.events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      }
+    },
+    "cgroup_peak_scope": "Cumulative for the Worker container; before and after included",
+    "upload_seconds": 1.725,
+    "download_seconds": 0.185,
+    "source_bytes": 52428800,
+    "uploaded_bytes": 52428800,
+    "downloaded_bytes": 52428800,
+    "sha256_match": true,
+    "probe_object_deleted": true,
+    "elapsed_seconds": 2.474,
+    "python_tracemalloc_current_bytes": 289720,
+    "python_tracemalloc_peak_bytes": 10765586,
+    "probe_process_max_rss_bytes": 51585024,
+    "cgroup_after": {
+      "memory.max": 1073741824,
+      "memory.current": 188874752,
+      "memory.peak": 297185280,
+      "memory.events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      }
+    },
+    "oom_event_delta": {
+      "oom": 0,
+      "oom_kill": 0,
+      "oom_group_kill": 0
+    }
+  },
+  "initial_failure": {
+    "task_id": "fa9cdddb-5584-47dc-8890-c32689316d0f",
+    "result": "FAIL",
+    "reason": "Free model returned JSON Schema metadata in the analysis result, including after the previous generic correction.",
+    "fix": "Existing single correction now includes specific bounded validation feedback and requests a data instance. Subsequent real initial and continuation tasks passed; initial used one correction."
+  },
+  "checks": {
+    "ruff": "PASS",
+    "ruff_format": "PASS",
+    "pytest_default": "23 passed, 9 opt-in skipped (4.74s)",
+    "pytest_native_and_postgres": "32 passed (12.75s)",
+    "helm_optional_and_default_render": "PASS",
+    "browser_javascript": "PASS",
+    "repository_secret_scan": "PASS"
+  },
+  "running_services": {
+    "kirby-local-api-1": {
+      "state": "running",
+      "health": "healthy"
+    },
+    "kirby-local-worker-1": {
+      "state": "running",
+      "health": null
+    },
+    "kirby-local-db-1": {
+      "state": "running",
+      "health": "healthy"
+    },
+    "my-minio-minio-1": {
+      "state": "running",
+      "health": "healthy"
+    }
+  },
+  "http_health": {
+    "http://127.0.0.1:8000/readyz": 200,
+    "http://127.0.0.1:8088/": 200,
+    "http://127.0.0.1:8088/api/agents/log-analyst/files": 200
+  },
+  "image_manifest_digest": "sha256:5e7ecb7488782e31683a5f5b6d8f1571e86f3c76e8888f2ac0a2f0ebfc40d018",
+  "limits": {
+    "max_file_bytes": 67108864,
+    "max_files_per_context": 4,
+    "file_types": [
+      ".txt",
+      ".log",
+      ".csv",
+      ".json",
+      ".jsonl"
+    ],
+    "result_formats": [
+      "JSON analysis object",
+      "CSV items/observations"
+    ],
+    "signed_grant_minutes": 15
+  },
+  "not_run": [
+    "Target Kubernetes Pod/PVC/network memory validation",
+    "PDF/Office/archive parsing and full-file bulk conversion (not implemented)",
+    "Retention/GC (deferred)"
+  ],
+  "notes": [
+    "Synthetic inputs only; no paid model fallback.",
+    "Container memory includes Worker and Goose plus cgroup-charged file cache; synthetic sequential scenario, not a load test.",
+    "Generated-file transport probe used the previous image before the JSON correction edit; transfer code is unchanged. Its memory peak is cumulative for that container lifetime.",
+    "Actual analysis reports are small; the separate 50MiB probe verifies generated file transport.",
+    "MinIO configuration and existing user data were preserved. Probe-only objects were deleted; task attachments/reports remain available.",
+    "No secret values or signed URLs are included in this evidence."
+  ]
+}

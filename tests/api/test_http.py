@@ -259,3 +259,143 @@ async def test_nonblocking_cancel_and_blocking_disconnect_do_not_execute(example
         canceled = await client.cancel_task(t.CancelTaskRequest(id=task_id))
         assert canceled.status.state == t.TaskState.TASK_STATE_CANCELED
         assert store.canceled == [task_id]
+
+
+class FileControlledStore(ControlledStore):
+    def __init__(self):
+        super().__init__()
+        self.files = {}
+
+    async def create_file(
+        self, principal, role_id, file_id, filename, media_type, size
+    ):
+        self.files[file_id] = {
+            "id": file_id,
+            "filename": filename,
+            "media_type": media_type,
+            "size": size,
+            "status": "pending",
+            "tenant": principal.tenant,
+            "subject": principal.subject,
+            "role_id": role_id,
+        }
+        return self.files[file_id]
+
+    async def get_file(self, principal, role_id, file_id):
+        record = self.files.get(file_id)
+        if record is None or (
+            record["tenant"],
+            record["subject"],
+            record["role_id"],
+        ) != (principal.tenant, principal.subject, role_id):
+            raise NotFound
+        return record
+
+    async def complete_file(self, principal, role_id, file_id, object_key, etag):
+        record = await self.get_file(principal, role_id, file_id)
+        record.update(status="ready", object_key=object_key, etag=etag)
+        return record
+
+    async def submit(self, *args, attachments=None, **kwargs):
+        task = await super().submit(*args, **kwargs)
+        task.attachments = attachments or []
+        task.output_files = [
+            {
+                "filename": "report.csv",
+                "media_type": "text/csv",
+                "size": 42,
+                "object_key": f"kirby/files/{uuid4()}",
+                "etag": "synthetic",
+            }
+        ]
+        return task
+
+
+class FileObjects:
+    max_file_bytes = 64 * 1024 * 1024
+
+    def __init__(self):
+        self.signed = 0
+
+    def create_upload(self, file_id, filename, media_type, size):
+        return {
+            "url": "https://objects.example.invalid/dev",
+            "fields": {"key": file_id},
+        }
+
+    def complete_upload(self, file_id, expected_size):
+        return {"object_key": f"kirby/files/{file_id}", "etag": "synthetic"}
+
+    def discard_upload(self, file_id):
+        pass
+
+    def download_url(self, ref):
+        self.signed += 1
+        return (
+            f"https://objects.example.invalid/{ref['object_key']}?grant={self.signed}"
+        )
+
+
+async def test_owned_file_references_and_fresh_output_download_grants(examples):
+    store, objects = FileControlledStore(), FileObjects()
+    app = create_app(
+        store,
+        load_registry(examples, "synthetic-model"),
+        CREDENTIALS,
+        public_url="http://test",
+        object_store=objects,
+    )
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://test",
+        headers={"Authorization": "Bearer alice-token", "A2A-Version": "1.0"},
+    ) as http:
+        prefix = f"/agents/{ROLE}/files"
+        options = (await http.get(prefix)).json()
+        assert options["enabled"] and options["max_file_bytes"] == 64 * 1024 * 1024
+        uploaded = await http.post(
+            prefix, json={"filename": "input.log", "size": 50 * 1024 * 1024}
+        )
+        assert uploaded.status_code == 200
+        assert len(uploaded.content) < 1024  # Only metadata, never the 50 MiB body.
+        file_id = uploaded.json()["id"]
+        part = t.Part(
+            url=f"http://test{prefix}/{file_id}/content", filename="input.log"
+        )
+        card = ParseDict(
+            (await http.get(f"/agents/{ROLE}/.well-known/agent-card.json")).json(),
+            t.AgentCard(),
+        )
+        client = JsonRpcTransport(http, card, f"http://test/agents/{ROLE}/rpc")
+        message = request(immediate=True)
+        message.message.parts.append(part)
+        with pytest.raises(InvalidParamsError):
+            await client.send_message(message)
+        ready = await http.post(f"{prefix}/{file_id}/complete")
+        assert ready.status_code == 200
+        assert ready.json()["part"]["mediaType"] == "text/plain"
+        task = (await client.send_message(message)).task
+        assert len(task.artifacts) == 2
+        assert task.artifacts[1].parts[0].filename == "report.csv"
+        fetched = await client.get_task(t.GetTaskRequest(id=task.id))
+        assert fetched.artifacts[1].parts[0].url != task.artifacts[1].parts[0].url
+        assert store.tasks[task.id].attachments[0]["id"] == file_id
+        assert (await http.get(f"{prefix}/{file_id}/content")).status_code == 307
+        http.headers["Authorization"] = "Bearer bob-token"
+        assert (await http.post(f"{prefix}/{file_id}/complete")).status_code == 404
+        assert (await http.get(f"{prefix}/{file_id}/content")).status_code == 404
+        with pytest.raises(TaskNotFoundError):
+            await client.send_message(message)
+        http.headers["Authorization"] = "Bearer alice-token"
+        message.message.parts[-1].url = "http://169.254.169.254/metadata"
+        with pytest.raises(InvalidParamsError):
+            await client.send_message(message)
+        message.message.parts[-1].raw = b"inline file bytes"
+        with pytest.raises(InvalidParamsError):
+            await client.send_message(message)
+        for metadata in [
+            {"filename": "large.log", "size": 64 * 1024 * 1024 + 1},
+            {"filename": "archive.zip", "size": 42},
+            {"filename": "../private.log", "size": 42},
+        ]:
+            assert (await http.post(prefix, json=metadata)).status_code == 400

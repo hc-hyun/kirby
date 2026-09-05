@@ -161,3 +161,63 @@ async def test_cancel_and_expired_execution_never_requeue(store):
     for task in (queued, running, expired):
         with pytest.raises(Conflict):
             await store.submit(OWNER, "log", "retry", "text", MANIFEST, task.context_id)
+
+
+async def test_files_are_scoped_pinned_inherited_and_committed_with_result(store):
+    file_id = str(uuid4())
+    pending = await store.create_file(
+        OWNER, "log", file_id, "demo.log", "text/plain", 3
+    )
+    assert pending["status"] == "pending"
+    for principal, role in [(OTHER, "log"), (OTHER_TENANT, "log"), (OWNER, "voc")]:
+        with pytest.raises(NotFound):
+            await store.get_file(principal, role, file_id)
+        with pytest.raises(NotFound):
+            await store.complete_file(principal, role, file_id, "key", "etag")
+    with pytest.raises(NotFound):
+        await store.submit(
+            OWNER, "log", "pending", "text", MANIFEST, attachments=[{"id": file_id}]
+        )
+    ready = await store.complete_file(OWNER, "log", file_id, "key", "pinned")
+    assert await store.complete_file(OWNER, "log", file_id, "key", "pinned") == ready
+    with pytest.raises(Conflict):
+        await store.complete_file(OWNER, "log", file_id, "other-key", "changed")
+    task = await store.submit(
+        OWNER,
+        "log",
+        "files",
+        "text",
+        MANIFEST,
+        attachments=[{"id": file_id, "object_key": "untrusted"}],
+    )
+    assert task.attachments[0]["object_key"] == "key"
+    with pytest.raises(Conflict):
+        await store.submit(OWNER, "log", "files", "text", MANIFEST)
+    await store.claim("worker")
+    output = [{"id": str(uuid4()), "filename": "result.json", "object_key": "output"}]
+    assert await store.finish(
+        task.id,
+        "worker",
+        "completed",
+        result={"ok": True},
+        session_id="session",
+        session_path="path",
+        output_files=output,
+    )
+    assert (await store.get(OWNER, "log", task.id)).output_files == output
+    continuation = await store.submit(
+        OWNER, "log", "next-files", "next", MANIFEST, task.context_id
+    )
+    assert continuation.attachments == task.attachments
+    await store.claim("worker")
+    await store.cancel(OWNER, "log", continuation.id)
+    await store.finish(
+        continuation.id,
+        "worker",
+        "completed",
+        result={"discard": True},
+        session_id="discard",
+        session_path="discard",
+        output_files=output,
+    )
+    assert (await store.get(OWNER, "log", continuation.id)).output_files == []

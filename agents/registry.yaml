@@ -1,0 +1,4 @@
+schema_version: 1
+enabled:
+  voc-analyst: voc-analyst/agent.yaml
+  log-analyst: log-analyst/agent.yaml

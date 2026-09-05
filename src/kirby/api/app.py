@@ -11,6 +11,7 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from kirby.api.auth import AccessMiddleware, IdentityContext
+from kirby.api.files import FILE_TYPES, file_routes
 from kirby.api.handler import TaskHandler
 from kirby.contracts import Principal
 
@@ -22,6 +23,7 @@ def create_app(
     *,
     public_url: str = "http://127.0.0.1:8000",
     poll_interval: float = 0.2,
+    object_store=None,
 ) -> Starlette:
     """The caller owns storage lifecycle and supplies trusted role manifests."""
     if not credentials or any(not token for token in credentials):
@@ -99,8 +101,14 @@ def create_app(
             security_requirements=[
                 t.SecurityRequirement(schemes={"bearer": t.StringList()})
             ],
-            default_input_modes=["text/plain"],
-            default_output_modes=["application/json"],
+            default_input_modes=(
+                sorted(set(FILE_TYPES.values())) if object_store else ["text/plain"]
+            ),
+            default_output_modes=(
+                ["application/json", "text/csv"]
+                if object_store
+                else ["application/json"]
+            ),
             skills=[
                 t.AgentSkill(**skill) for skill in profile["a2a"]["advertised_skills"]
             ],
@@ -111,9 +119,17 @@ def create_app(
                 partial(card_response, role_id=role_id),
             )
         )
+        routes.extend(file_routes(store, object_store, public_url, role_id))
         routes.extend(
             create_jsonrpc_routes(
-                TaskHandler(store, role_id, manifest, poll_interval),
+                TaskHandler(
+                    store,
+                    role_id,
+                    manifest,
+                    poll_interval,
+                    object_store=object_store,
+                    public_url=public_url,
+                ),
                 f"{prefix}/rpc",
                 IdentityContext(),
                 enable_v0_3_compat=False,

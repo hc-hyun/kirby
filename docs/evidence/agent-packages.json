@@ -1,0 +1,57 @@
+{
+  "feature": "PKG02: one folder per agent",
+  "status": "PASS",
+  "date": "2026-09-05",
+  "manifest_equality": {
+    "voc-analyst": {
+      "complete_manifest_equal": true,
+      "digest": "da0f8e5013349e8bee7c77961ea88149b7f404e36f4bb4590a31fa31556e289e"
+    },
+    "log-analyst": {
+      "complete_manifest_equal": true,
+      "digest": "233a49af6cc1379c8b8d8521d6cdce8127a4dde6e0774a66f4e5a45dfc32d2b0"
+    }
+  },
+  "live": {
+    "status": "PASS",
+    "model": "cohere/north-mini-code:free",
+    "tasks": [
+      {
+        "kind": "pre-migration-context-continuation",
+        "id": "21222f9c-f06b-4a8a-977e-5787b87e08df",
+        "context_id": "8124628c-6184-4737-83b5-416ea2824ed9",
+        "state": "TASK_STATE_COMPLETED"
+      },
+      {
+        "kind": "new-package-context",
+        "id": "ae6ab5c0-4ee7-4b93-8b8d-be74e2343199",
+        "context_id": "81e1370b-2334-4bbf-b10f-239e00895cc4",
+        "state": "TASK_STATE_COMPLETED"
+      }
+    ],
+    "old_context_manifest_session_id_and_path": "UNCHANGED",
+    "new_context_package_manifest": "MATCH",
+    "minio_downloads": "PASS"
+  },
+  "checks": {
+    "default_pytest": "28 passed, 9 opt-in skipped (7.50s)",
+    "native_and_postgres_pytest": "37 passed (12.27s)",
+    "ruff": "PASS",
+    "ruff_format": "PASS",
+    "third_agent_registration_and_generic_samples": "PASS",
+    "browser_package_sample_buttons": "PASS",
+    "docker_package_and_platform_schema_validation": "PASS"
+  },
+  "image_manifest_digest": "sha256:1fdab2d658d466f1017967da4c56e258734c0438ad152ec5d937adaec3adb045",
+  "not_run": [
+    "PKG03 exported manifest loading / independent content releases",
+    "Kubernetes deployment",
+    "Hot reload / automated publishing"
+  ],
+  "notes": [
+    "Existing agent source contents were moved, not discarded.",
+    "Live continuation kept the same stored manifest, native session ID and absolute session path.",
+    "Initial live checks used the preceding package image; the final image additionally rejects fixtures placed in skill folders and compiles the same manifests.",
+    "No paid fallback, secret values or signed URLs are included in evidence."
+  ]
+}
