@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Synthetic VOC PoC result v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "role",
+    "status",
+    "summary",
+    "items",
+    "limitations"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "role": {
+      "const": "voc-analyst"
+    },
+    "status": {
+      "enum": [
+        "ok",
+        "insufficient_data"
+      ]
+    },
+    "summary": {
+      "type": "string"
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "input_id",
+          "normalized_symptom",
+          "component_candidate",
+          "trigger",
+          "evidence_ids"
+        ],
+        "properties": {
+          "input_id": {
+            "type": "string"
+          },
+          "normalized_symptom": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "component_candidate": {
+            "enum": [
+              "display",
+              "battery",
+              "network",
+              "camera",
+              "audio",
+              "other",
+              "unknown"
+            ]
+          },
+          "trigger": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "evidence_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

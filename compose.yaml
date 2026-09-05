@@ -1,0 +1,63 @@
+name: kirby
+services:
+  db:
+    image: postgres@sha256:4ef4dbc939d61acea57712655ddb4b4ab27419c913f94cca0cd57cb3ea3c2280
+    environment:
+      POSTGRES_DB: kirby
+      POSTGRES_USER: kirby
+      POSTGRES_PASSWORD: ${KIRBY_POSTGRES_PASSWORD:?Set KIRBY_POSTGRES_PASSWORD}
+    volumes:
+      - postgres:/var/lib/postgresql
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U kirby -d kirby']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  migrate:
+    build: .
+    image: kirby:local
+    command: [python, -m, kirby.storage, migrate]
+    environment: &database
+      KIRBY_DATABASE_URL: postgresql://kirby:${KIRBY_POSTGRES_PASSWORD}@db:5432/kirby
+    depends_on:
+      db: {condition: service_healthy}
+  api:
+    image: kirby:local
+    user: "${KIRBY_UID:-1000}:${KIRBY_GID:-1000}"
+    environment:
+      <<: *database
+      KIRBY_PUBLIC_URL: ${KIRBY_PUBLIC_URL:-http://127.0.0.1:8000}
+      KIRBY_CREDENTIALS_FILE: /run/secrets/api_credentials
+      KIRBY_MODEL: ${KIRBY_MODEL:-cohere/north-mini-code:free}
+    ports: ['127.0.0.1:8000:8000']
+    secrets: [api_credentials]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    healthcheck:
+      test: [CMD, python, -c, 'import urllib.request; urllib.request.urlopen("http://127.0.0.1:8000/readyz")']
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+  worker:
+    image: kirby:local
+    user: "${KIRBY_UID:-1000}:${KIRBY_GID:-1000}"
+    command: [python, -m, kirby.worker]
+    environment:
+      <<: *database
+      KIRBY_OPENROUTER_KEY_FILE: /run/secrets/openrouter_key
+      KIRBY_MODEL: ${KIRBY_MODEL:-cohere/north-mini-code:free}
+      KIRBY_WORKER_ID: worker-1
+    secrets: [openrouter_key]
+    volumes: ["${KIRBY_SESSIONS_DIR:-./.local/sessions}:/data/sessions"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    stop_grace_period: 330s
+    restart: unless-stopped
+secrets:
+  api_credentials:
+    file: ${KIRBY_CREDENTIALS_FILE:?Set KIRBY_CREDENTIALS_FILE}
+  openrouter_key:
+    file: ${KIRBY_OPENROUTER_KEY_FILE:?Set KIRBY_OPENROUTER_KEY_FILE}
+volumes:
+  postgres:

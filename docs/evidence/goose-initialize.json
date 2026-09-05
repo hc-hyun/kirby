@@ -1,0 +1,69 @@
+{
+  "binary_version": "1.49.0",
+  "real_goose": true,
+  "initialize": {
+    "protocolVersion": 1,
+    "agentCapabilities": {
+      "loadSession": true,
+      "promptCapabilities": {
+        "image": true,
+        "audio": false,
+        "embeddedContext": true,
+        "_meta": null
+      },
+      "mcpCapabilities": {
+        "http": true,
+        "sse": false,
+        "acp": false,
+        "_meta": null
+      },
+      "sessionCapabilities": {
+        "list": {
+          "_meta": null
+        },
+        "delete": {
+          "_meta": null
+        },
+        "additionalDirectories": null,
+        "fork": null,
+        "resume": null,
+        "close": {
+          "_meta": null
+        },
+        "_meta": null
+      },
+      "auth": {
+        "logout": null,
+        "_meta": null
+      },
+      "providers": null,
+      "nes": null,
+      "positionEncoding": null,
+      "_meta": {
+        "goose": {
+          "recipeParameterScopes": {},
+          "localInference": {}
+        }
+      }
+    },
+    "authMethods": [
+      {
+        "id": "goose-provider",
+        "name": "Configure Provider",
+        "description": "Run `goose configure` to set up your AI provider and API key",
+        "_meta": null
+      }
+    ],
+    "agentInfo": {
+      "name": "goose",
+      "title": null,
+      "version": "1.49.0",
+      "_meta": null
+    },
+    "_meta": null
+  },
+  "session_new": "BLOCKED",
+  "error_type": "RequestError",
+  "error_code": -32603,
+  "process_reaped": true
+}

@@ -1,0 +1,27 @@
+{
+  "transport": "HTTP JSON-RPC",
+  "checks": [
+    {
+      "role": "voc-analyst",
+      "task": "d0985316-020f-4e58-86df-77c6f5d59bc6",
+      "state": "TASK_STATE_COMPLETED"
+    },
+    {
+      "role": "voc-analyst",
+      "continuation": true,
+      "task": "50e6a491-dde0-4d8f-94d3-d17bbc5c35e5",
+      "state": "TASK_STATE_COMPLETED"
+    },
+    {
+      "role": "log-analyst",
+      "task": "7dd11cb5-40d1-444b-a1a1-b713a3d59973",
+      "state": "TASK_STATE_COMPLETED"
+    },
+    {
+      "role": "log-analyst",
+      "continuation": true,
+      "task": "4a51a600-d3b1-42ad-9619-8810dba8d041",
+      "state": "TASK_STATE_COMPLETED"
+    }
+  ]
+}

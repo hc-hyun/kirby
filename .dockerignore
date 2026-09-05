@@ -1,0 +1,12 @@
+.git
+.venv
+.tools
+.local
+__pycache__
+.pytest_cache
+.ruff_cache
+*.zip
+*.key
+.env
+.env.*
+docs

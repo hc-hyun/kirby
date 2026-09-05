@@ -1,0 +1,21 @@
+{
+  "model": "liquid/lfm-2.5-2.6b:free",
+  "real_goose": true,
+  "synthetic_inputs": true,
+  "roles": [
+    {
+      "role": "voc-analyst",
+      "role_digest": "d4941f84e6b9bb2c1f1f444578d1755e97ba3296690fe1efea7e7ba8b93c4cc9",
+      "state": "TASK_STATE_FAILED",
+      "failure_type": "JSONDecodeError",
+      "schema_validation": "FAIL"
+    },
+    {
+      "role": "log-analyst",
+      "role_digest": "ed8dc3a437841df5be2b42dbdda33b469d6e4673e6b577825714dcbf7a89cbc3",
+      "state": "TASK_STATE_FAILED",
+      "failure_type": "JSONDecodeError",
+      "schema_validation": "FAIL"
+    }
+  ]
+}

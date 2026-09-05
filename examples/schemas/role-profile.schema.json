@@ -1,0 +1,228 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Goose A2A Runtime role profile — project proposal v1",
+  "description": "Internal project schema, not an official Goose or A2A configuration.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "version",
+    "description",
+    "runtime",
+    "skills",
+    "tools",
+    "session",
+    "execution",
+    "output_schema_ref",
+    "a2a"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model_profile",
+        "worker_pool"
+      ],
+      "properties": {
+        "model_profile": {
+          "type": "string",
+          "minLength": 1
+        },
+        "worker_pool": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "skills": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "available"
+      ],
+      "properties": {
+        "required": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/skillRef"
+          }
+        },
+        "available": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/skillRef"
+          }
+        }
+      }
+    },
+    "tools": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mcp_server_refs",
+        "local_shell"
+      ],
+      "properties": {
+        "mcp_server_refs": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "local_shell": {
+          "const": false
+        }
+      }
+    },
+    "session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "skill_binding",
+        "pin_versions",
+        "max_concurrent_tasks"
+      ],
+      "properties": {
+        "skill_binding": {
+          "const": "on_create"
+        },
+        "pin_versions": {
+          "const": true
+        },
+        "max_concurrent_tasks": {
+          "const": 1
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_runtime_seconds",
+        "max_model_requests",
+        "max_output_tokens",
+        "max_input_bytes",
+        "max_output_bytes",
+        "max_skill_bundle_bytes",
+        "max_required_skill_bytes"
+      ],
+      "properties": {
+        "max_runtime_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_model_requests": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_output_tokens": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_input_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_output_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_skill_bundle_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_required_skill_bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "output_schema_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "a2a": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "advertised_skills"
+      ],
+      "properties": {
+        "advertised_skills": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "name",
+              "description"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "skillRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "version"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        }
+      }
+    }
+  }
+}

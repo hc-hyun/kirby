@@ -1,0 +1,5 @@
+{
+  "model": "cohere/north-mini-code:free",
+  "cancel_grace_seconds": 5,
+  "acp_cancel": "PASS"
+}

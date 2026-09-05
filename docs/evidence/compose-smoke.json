@@ -1,0 +1,8 @@
+{
+  "deployment": "Docker Compose",
+  "api_ready": true,
+  "roles": 2,
+  "real_goose": "1.49.0",
+  "model": "cohere/north-mini-code:free",
+  "task_state": "TASK_STATE_COMPLETED"
+}

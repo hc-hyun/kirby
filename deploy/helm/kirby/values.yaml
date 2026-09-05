@@ -1,0 +1,29 @@
+image:
+  repository: kirby
+  tag: "0.1.0"
+  # Set the published image digest for a deployment; it takes precedence over tag.
+  digest: ""
+  pullPolicy: IfNotPresent
+
+# Create this Secret before installing the chart. Required keys:
+# DATABASE_URL: external PostgreSQL connection URL
+# API_CREDENTIALS: JSON credential records, matching config/credentials.example.json
+# OPENROUTER_KEY: model provider key; mounted only in the worker
+existingSecret: kirby-secrets
+publicUrl: http://127.0.0.1:8000
+model: cohere/north-mini-code:free
+
+storage:
+  size: 10Gi
+  # Empty uses the cluster's default storage class.
+  storageClassName: ""
+
+# Initial resource settings; measure against the target model and workload.
+api:
+  resources:
+    requests: {cpu: 100m, memory: 128Mi}
+    limits: {cpu: 500m, memory: 512Mi}
+worker:
+  resources:
+    requests: {cpu: 250m, memory: 512Mi}
+    limits: {cpu: "2", memory: 2Gi}

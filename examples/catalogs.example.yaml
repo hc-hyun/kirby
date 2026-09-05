@@ -1,0 +1,55 @@
+schema_version: 1
+status: DESIGN_EXAMPLE_NOT_DEPLOYABLE
+notes: Paths are relative to this catalogs.example.yaml. No credentials or real endpoints
+  are included.
+model_profiles:
+  quality-default:
+    integration_status: TO_VERIFY_S06
+    config_reference: internal/model-profiles/quality-default
+    credentials_reference: runtime-secret-reference-only
+worker_pools:
+  mcp-readonly:
+    active_goose_per_pod: 1
+    local_shell: false
+    image_digest: null
+    release_status: NOT_READY
+mcp_servers:
+  voc-readonly:
+    integration_status: TO_VERIFY_S03_S06
+    connector_reference: internal/mcp/voc-readonly
+    read_only_required: true
+  logs-readonly:
+    integration_status: TO_VERIFY_S03_S06
+    connector_reference: internal/mcp/logs-readonly
+    read_only_required: true
+  quality-rag:
+    integration_status: TO_VERIFY_S03_S06
+    connector_reference: internal/mcp/quality-rag
+    read_only_required: true
+skills:
+- id: voc-analyst-role
+  version: 1.0.0
+  source_path: skills/voc-analyst-role
+  content_digest: null
+  status: UNPUBLISHED_EXAMPLE
+- id: voc-normalization
+  version: 1.0.0
+  source_path: skills/voc-normalization
+  content_digest: null
+  status: UNPUBLISHED_EXAMPLE
+- id: log-analyst-role
+  version: 1.0.0
+  source_path: skills/log-analyst-role
+  content_digest: null
+  status: UNPUBLISHED_EXAMPLE
+- id: log-triage
+  version: 1.0.0
+  source_path: skills/log-triage
+  content_digest: null
+  status: UNPUBLISHED_EXAMPLE
+output_schemas:
+  voc-result-v1: schemas/voc-result.schema.json
+  log-result-v1: schemas/log-result.schema.json
+roles:
+  voc-analyst: roles/voc-analyst.yaml
+  log-analyst: roles/log-analyst.yaml

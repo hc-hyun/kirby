@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "role": "voc-analyst",
+  "status": "ok",
+  "summary": "가상 VOC 한 건을 관측 증상과 발생 조건으로 분리했다.",
+  "items": [
+    {
+      "input_id": "demo-voc-001",
+      "normalized_symptom": "화면 응답 정지",
+      "component_candidate": "unknown",
+      "trigger": "고객 보고상 업데이트 이후",
+      "evidence_ids": [
+        "demo-voc-001"
+      ]
+    }
+  ],
+  "limitations": [
+    "가상 데이터이다. 업데이트와 증상의 인과관계 및 원인은 확인되지 않았다."
+  ]
+}

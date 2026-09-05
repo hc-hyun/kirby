@@ -1,0 +1,10 @@
+{
+  "synthetic": true,
+  "records": [
+    {
+      "input_id": "demo-voc-001",
+      "text": "업데이트 하고 나서 화면이 멈춰요."
+    }
+  ],
+  "note": "PoC schema/role smoke input only; not real customer data."
+}

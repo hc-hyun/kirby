@@ -1,0 +1,17 @@
+{
+  "synthetic": true,
+  "source_id": "demo-log-001",
+  "lines": [
+    "TEST FIXTURE — not a real device log",
+    "I/TestFixture: begin",
+    "I/TestFixture: step 1",
+    "I/TestFixture: step 2",
+    "I/TestFixture: step 3",
+    "I/TestFixture: step 4",
+    "I/TestFixture: step 5",
+    "I/TestFixture: step 6",
+    "I/TestFixture: simulated operation",
+    "E/TestFixture: simulated operation failed"
+  ],
+  "note": "Line numbers are 1-based. No device/version/root cause is provided."
+}

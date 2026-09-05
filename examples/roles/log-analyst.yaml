@@ -1,0 +1,37 @@
+schema_version: 1
+id: log-analyst
+version: 1.0.0
+description: Separate observations and hypotheses in Android logs.
+runtime:
+  model_profile: quality-default
+  worker_pool: mcp-readonly
+skills:
+  required:
+  - id: log-analyst-role
+    version: 1.0.0
+  available:
+  - id: log-triage
+    version: 1.0.0
+tools:
+  mcp_server_refs:
+  - logs-readonly
+  - quality-rag
+  local_shell: false
+session:
+  skill_binding: on_create
+  pin_versions: true
+  max_concurrent_tasks: 1
+execution:
+  max_runtime_seconds: 300
+  max_model_requests: 20
+  max_output_tokens: 4096
+  max_input_bytes: 262144
+  max_output_bytes: 1048576
+  max_skill_bundle_bytes: 8388608
+  max_required_skill_bytes: 65536
+output_schema_ref: log-result-v1
+a2a:
+  advertised_skills:
+  - id: log-analysis
+    name: 로그 분석
+    description: Separate observations and hypotheses in Android logs.

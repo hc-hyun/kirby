@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-worker
+spec:
+  # Session files are local to this PVC. Multiple workers need a recovery design.
+  replicas: 1
+  serviceName: {{ .Release.Name }}-worker
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: worker
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 330
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: worker
+          image: {{ include "kirby.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: [python, -m, kirby.worker]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          env:
+            - name: KIRBY_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecret }}
+                  key: DATABASE_URL
+            - name: KIRBY_WORKER_ID
+              valueFrom:
+                fieldRef: {fieldPath: metadata.name}
+            - name: KIRBY_SESSIONS_DIR
+              value: /data/sessions
+            - name: KIRBY_GOOSE_BINARY
+              value: /usr/local/bin/goose
+            - name: KIRBY_OPENROUTER_KEY_FILE
+              value: /run/secrets/openrouter_key
+            - name: KIRBY_MODEL
+              value: {{ .Values.model | quote }}
+          resources:
+            {{- toYaml .Values.worker.resources | nindent 12 }}
+          volumeMounts:
+            - {name: sessions, mountPath: /data/sessions}
+            - {name: model-key, mountPath: /run/secrets, readOnly: true}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: model-key
+          secret:
+            secretName: {{ .Values.existingSecret }}
+            defaultMode: 0440
+            items:
+              - {key: OPENROUTER_KEY, path: openrouter_key}
+        - name: tmp
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: sessions
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- if .Values.storage.storageClassName }}
+        storageClassName: {{ .Values.storage.storageClassName | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.storage.size }}
+---
+# Governing headless service; the worker does not expose an HTTP server.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-worker
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: worker

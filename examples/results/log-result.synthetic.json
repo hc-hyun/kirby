@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "role": "log-analyst",
+  "status": "insufficient_data",
+  "summary": "가상 로그의 오류 후보 한 줄만으로 원인을 확정할 수 없다.",
+  "observations": [
+    {
+      "source_id": "demo-log-001",
+      "line_start": 10,
+      "line_end": 10,
+      "description": "테스트 fixture의 오류 후보 표기."
+    }
+  ],
+  "hypotheses": [],
+  "limitations": [
+    "원본 로그 전체·재현 정보·기기 정보가 제공되지 않았다. 가상 schema 검증 데이터이다."
+  ]
+}
